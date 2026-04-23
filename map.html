@@ -3,62 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detroit Family Resource Map</title>
+    <title>Detroit Family Resources</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; }
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+        }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; background: var(--bg); color: #1e293b; }
+        
+        /* Sleek Filter Bar */
         .nav-container {
-            background: #fff; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            position: sticky; top: 0; z-index: 1000; display: flex; gap: 8px;
-            overflow-x: auto; white-space: nowrap;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            position: sticky;
+            top: 0;
+            z-index: 1001;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+        .nav-container::-webkit-scrollbar { display: none; }
+
         .filter-btn {
-            background: #f0f2f5; border: 1px solid #ddd; padding: 8px 16px;
-            border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 8px 20px;
+            border-radius: 99px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
         }
-        .filter-btn.active { background: #007bff; color: white; border-color: #007bff; }
-        #map { height: calc(100vh - 60px); width: 100%; }
-        .popup-content { line-height: 1.4; min-width: 200px; }
-        .popup-title { font-size: 15px; font-weight: bold; color: #222; display: block; margin-bottom: 2px; }
-        .popup-addr { color: #666; font-size: 12px; display: block; margin-bottom: 8px; }
-        .popup-btn {
-            display: inline-block; text-decoration: none; padding: 6px 12px;
-            border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 5px;
+
+        .filter-btn:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+
+        #map { height: calc(100vh - 65px); width: 100%; z-index: 1; }
+
+        /* Modern Popup Styling */
+        .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .popup-content { padding: 10px; min-width: 200px; }
+        .popup-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; display: block; }
+        .popup-addr { color: #64748b; font-size: 12px; display: block; margin-bottom: 12px; line-height: 1.4; }
+        
+        .action-row { display: flex; gap: 8px; margin-top: 10px; }
+        .action-btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            transition: opacity 0.2s;
         }
-        .btn-call { background: #007bff; color: white; margin-right: 5px; }
-        .btn-dir { background: #28a745; color: white; }
-        .btn-web { color: #007bff; border: 1px solid #007bff; width: 100%; box-sizing: border-box; text-align: center; }
+        .btn-call { background: #eff6ff; color: #2563eb; }
+        .btn-dir { background: #f0fdf4; color: #16a34a; }
+        .popup-web { 
+            display: block; text-align: center; margin-top: 10px; 
+            color: #64748b; font-size: 11px; text-decoration: none; border-top: 1px solid #f1f5f9; padding-top: 10px; 
+        }
     </style>
 </head>
 <body>
 
     <div class="nav-container" id="filter-bar">
-        <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
-        <button class="filter-btn" onclick="filterMap('Food', this)">Food</button>
-        <button class="filter-btn" onclick="filterMap('Summer Camp', this)">Summer Camp</button>
-        <button class="filter-btn" onclick="filterMap('Health', this)">Healthcare</button>
-        <button class="filter-btn" onclick="filterMap('Education', this)">Education</button>
-        <button class="filter-btn" onclick="filterMap('Housing', this)">Housing</button>
-        <button class="filter-btn" onclick="filterMap('Parenting', this)">Parenting</button>
-        <button class="filter-btn" onclick="filterMap('Legal', this)">Legal</button>
-        <button class="filter-btn" onclick="filterMap('Clothes', this)">Clothes</button>
+        <button class="filter-btn active" onclick="filterMap('all', this)">📍 All</button>
+        <button class="filter-btn" onclick="filterMap('Food', this)">🍎 Food</button>
+        <button class="filter-btn" onclick="filterMap('Camp', this)">🏕️ Summer Camps</button>
+        <button class="filter-btn" onclick="filterMap('Clinic', this)">🩺 Health</button>
+        <button class="filter-btn" onclick="filterMap('Parenting', this)">👪 Parenting</button>
+        <button class="filter-btn" onclick="filterMap('Education', this)">📚 Education</button>
+        <button class="filter-btn" onclick="filterMap('Housing', this)">🏠 Housing</button>
+        <button class="filter-btn" onclick="filterMap('Legal', this)">⚖️ Legal</button>
+        <button class="filter-btn" onclick="filterMap('Activity', this)">🎡 Activities</button>
+        <button class="filter-btn" onclick="filterMap('Pregnancy', this)">👶 Pregnancy</button>
     </div>
 
     <div id="map"></div>
 
     <script>
-        var map = L.map('map').setView([42.3314, -83.0458], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var map = L.map('map', { zoomControl: false }).setView([42.3314, -83.0458], 11);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '©OpenStreetMap'
+        }).addTo(map);
 
         var allData = [];
         var markerGroup = L.layerGroup().addTo(map);
 
-        // PASTE YOUR CSV LINK HERE
-        var csvUrl = 'PASTE_YOUR_LINK_HERE';
+        // Your CSV Link
+        var csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDQf4C3GrOGMWh4pJ0DabdO7uHx5sFiDOy8DuPSL6kgXmEehhJTl1ipJoLz7TvI6uxVAHBZvTci02d/pub?output=csv';
+
+        // Custom Colored Marker Function
+        function createIcon(color) {
+            return new L.DivIcon({
+                className: 'custom-pin',
+                html: `<svg width="30" height="30" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            });
+        }
+
+        // Color Palette
+        function getColor(cat) {
+            cat = cat.toLowerCase();
+            if (cat.includes('food')) return '#16a34a'; // Green
+            if (cat.includes('health') || cat.includes('clinic')) return '#dc2626'; // Red
+            if (cat.includes('camp') || cat.includes('activity')) return '#ea580c'; // Orange
+            if (cat.includes('parenting') || cat.includes('pregnancy')) return '#db2777'; // Pink
+            if (cat.includes('education')) return '#9333ea'; // Purple
+            if (cat.includes('housing')) return '#2563eb'; // Blue
+            if (cat.includes('legal')) return '#475569'; // Grey
+            return '#6366f1'; // Default Indigo
+        }
 
         Papa.parse(csvUrl, {
             download: true,
@@ -74,41 +143,35 @@
             var bounds = [];
 
             allData.forEach(function(row) {
-                // Mapping exactly to your headers
-                var name  = row["Name of Organization"];
-                var cat   = row["Category"] || "";
-                var lat   = parseFloat(row["Latitude"]);
-                var lng   = parseFloat(row["Longitude"]);
-                var addr  = row["Address"];
-                var web   = row["Website"];
-                var phone = row["Phone"];
+                var keys = Object.keys(row);
+                var orgCat = row[keys[0]] || "";
+                var lat = parseFloat(row["Latitude"]) || parseFloat(row["Latitude (Y)"]);
+                var lng = parseFloat(row["Longitude"]) || parseFloat(row["Longitude (X)"]);
 
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    var matchesFilter = (category === 'all' || cat.toLowerCase().includes(category.toLowerCase()));
-
-                    if (matchesFilter) {
+                    if (category === 'all' || orgCat.toLowerCase().includes(category.toLowerCase())) {
+                        
                         var popupHTML = `
                             <div class="popup-content">
-                                <span class="popup-title">${name}</span>
-                                <span class="popup-addr">${addr}</span>
-                                
-                                ${phone ? `<a href="tel:${phone}" class="popup-btn btn-call">📞 Call</a>` : ''}
-                                <a href="http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}" target="_blank" class="popup-btn btn-dir">📍 Directions</a>
-                                
-                                ${web ? `<a href="${web}" target="_blank" class="popup-btn btn-web">Visit Website</a>` : ''}
+                                <span class="popup-title">${row["Name of Organization"]}</span>
+                                <span class="popup-addr">${row["Address"]}</span>
+                                <div class="action-row">
+                                    ${row["Phone"] ? `<a href="tel:${row["Phone"]}" class="action-btn btn-call">Call</a>` : ''}
+                                    <a href="http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}" target="_blank" class="action-btn btn-dir">Directions</a>
+                                </div>
+                                ${row["Website"] ? `<a href="${row["Website"]}" target="_blank" class="popup-web">Visit Organization Website →</a>` : ''}
                             </div>
                         `;
 
-                        var m = L.marker([lat, lng]).bindPopup(popupHTML);
-                        m.addTo(markerGroup);
+                        var marker = L.marker([lat, lng], { icon: createIcon(getColor(orgCat)) })
+                                      .bindPopup(popupHTML);
+                        marker.addTo(markerGroup);
                         bounds.push([lat, lng]);
                     }
                 }
             });
 
-            if (bounds.length > 0) {
-                map.fitBounds(bounds, { padding: [50, 50] });
-            }
+            if (bounds.length > 0) map.fitBounds(bounds, { padding: [70, 70] });
         }
 
         function filterMap(cat, btn) {
