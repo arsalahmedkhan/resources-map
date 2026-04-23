@@ -3,99 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detroit Resource Map</title>
+    <title>Detroit Family Resource Map</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 
     <style>
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f0f0f0; }
+        :root { --primary: #2563eb; --text: #1e293b; }
+        body { font-family: 'Inter', -apple-system, sans-serif; margin: 0; background: #f1f5f9; color: var(--text); }
         
+        /* Sleek Header & Search */
         .header {
-            background: white; padding: 15px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: white; padding: 15px 20px; 
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             position: sticky; top: 0; z-index: 1001;
         }
         
         .filter-select {
-            width: 100%; padding: 12px; border-radius: 8px;
-            border: 2px solid #007bff; font-size: 14px; font-weight: bold;
-            background-color: #fff; cursor: pointer; color: #007bff;
+            width: 100%; padding: 12px; border-radius: 12px;
+            border: 2px solid #e2e8f0; font-size: 14px; font-weight: 700;
+            background-color: #fff; cursor: pointer; color: var(--primary);
+            transition: border-color 0.2s;
         }
+        .filter-select:focus { border-color: var(--primary); outline: none; }
 
-        #map { height: calc(100vh - 80px); width: 100%; }
+        #map { height: calc(100vh - 85px); width: 100%; }
 
-        .popup-card { min-width: 220px; line-height: 1.5; }
-        .org-name { font-size: 16px; font-weight: bold; color: #000; display: block; }
+        /* Sleek Popup Cards */
+        .popup-card { min-width: 240px; padding: 5px; font-family: inherit; }
+        .org-name { font-size: 17px; font-weight: 800; display: block; margin-bottom: 4px; color: #0f172a; line-height: 1.2; }
         .org-cat-badge { 
-            display: inline-block; padding: 2px 6px; border-radius: 4px; 
-            font-size: 10px; font-weight: bold; text-transform: uppercase; margin: 5px 0;
-            background: #eee; color: #333;
+            display: inline-block; padding: 3px 10px; border-radius: 6px; 
+            font-size: 10px; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;
         }
-        .action-btns { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; }
-        .btn { flex: 1; text-align: center; padding: 8px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; }
-        .btn-call { background: #007bff; color: white; }
-        .btn-dir { background: #28a745; color: white; }
+        .action-btns { display: flex; gap: 8px; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+        .btn { flex: 1; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 12px; font-weight: 700; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-call { background: #eff6ff; color: #2563eb; }
+        .btn-dir { background: #f0fdf4; color: #16a34a; }
+        .btn-web { display: block; text-align: center; margin-top: 10px; font-size: 12px; color: #94a3b8; text-decoration: none; font-weight: 600; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <select class="filter-select" id="cat-filter" onchange="filterMap(this.value)">
-            <option value="all">🔍 SHOW ALL CATEGORIES</option>
+            <option value="all">🔍 SHOW ALL RESOURCES</option>
             <option value="ACTIVITY FOR KIDS">ACTIVITY FOR KIDS</option>
             <option value="EDUCATION">EDUCATION</option>
+            <option value="ADDITIONAL HELPFUL LINKS">ADDITIONAL HELPFUL LINKS</option>
             <option value="CLOTHING">CLOTHING</option>
             <option value="DETROIT FREE HEALTH CLINICS">DETROIT FREE HEALTH CLINICS</option>
             <option value="EMPLOYMENT">EMPLOYMENT</option>
-            <option value="FAMILY, YOUTH, CHILDREN'S SERVICE">FAMILY, YOUTH, CHILDREN'S SERVICE</option>
-            <option value="FOOD">FOOD</option>
+            <option value="FAMILY, YOUTH, CHILDREN'S SERVICE">FAMILY & YOUTH SERVICES</option>
+            <option value="FOOD">FOOD ASSISTANCE</option>
             <option value="FREE LEGAL SERVICES">FREE LEGAL SERVICES</option>
             <option value="HEALTHCARE & MEDICAL">HEALTHCARE & MEDICAL</option>
-            <option value="HOUSING">HOUSING</option>
+            <option value="HOLIDAY HELP">HOLIDAY HELP</option>
+            <option value="HOUSING">HOUSING & SHELTER</option>
             <option value="LEGAL AID">LEGAL AID</option>
             <option value="PARENTING & CAREGIVING">PARENTING & CAREGIVING</option>
             <option value="PREGNANCY & BABIES">PREGNANCY & BABIES</option>
-            <option value="SUPPORT GROUPS & MENTORING">SUPPORT GROUPS & MENTORING</option>
+            <option value="SUPPORT GROUPS & MENTORING">SUPPORT & MENTORING</option>
             <option value="TECH HELP">TECH HELP</option>
             <option value="TRANSPORTATION">TRANSPORTATION</option>
-            <option value="DISABILITY">DISABILITY</option>
-            <option value="ADDITIONAL HELPFUL LINKS">ADDITIONAL HELPFUL LINKS</option>
+            <option value="DISABILITY">DISABILITY SERVICES</option>
+            <option value="UNCATEGORIZED">UNCATEGORIZED</option>
         </select>
     </div>
 
     <div id="map"></div>
 
     <script>
-        // Use Standard Map Tiles (OpenStreetMap)
-        var map = L.map('map').setView([42.3314, -83.0458], 12);
+        // Initialize Map with Standard View
+        var map = L.map('map', { zoomControl: false }).setView([42.3314, -83.0458], 12);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        
+        // STANDARD MAP TILES (High Detail)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
         var allData = [];
         var markerGroup = L.layerGroup().addTo(map);
         var csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDQf4C3GrOGMWh4pJ0DabdO7uHx5sFiDOy8DuPSL6kgXmEehhJTl1ipJoLz7TvI6uxVAHBZvTci02d/pub?output=csv';
 
+        // Logic Engine to group your 40+ sheet categories into the 21 Main ones
         function getCleanCategory(rawCat) {
             if (!rawCat) return "UNCATEGORIZED";
             let c = rawCat.toLowerCase();
             if (c.includes("food") || c.includes("harvest") || c.includes("gleaners") || c.includes("pantry")) return "FOOD";
             if (c.includes("clinic") || c.includes("health center") || c.includes("huda")) return "DETROIT FREE HEALTH CLINICS";
-            if (c.includes("medical") || c.includes("healthcare")) return "HEALTHCARE & MEDICAL";
+            if (c.includes("medical") || c.includes("healthcare") || c.includes("vitals")) return "HEALTHCARE & MEDICAL";
             if (c.includes("camp") || c.includes("activity") || c.includes("library") || c.includes("kids")) return "ACTIVITY FOR KIDS";
-            if (c.includes("education") || c.includes("literacy") || c.includes("school")) return "EDUCATION";
+            if (c.includes("education") || c.includes("literacy") || c.includes("school") || c.includes("sylvan")) return "EDUCATION";
             if (c.includes("parenting") || c.includes("caregiving") || c.includes("father")) return "PARENTING & CAREGIVING";
-            if (c.includes("pregnancy") || c.includes("babies") || c.includes("diaper")) return "PREGNANCY & BABIES";
+            if (c.includes("pregnancy") || c.includes("babies") || c.includes("sister friends") || c.includes("diaper")) return "PREGNANCY & BABIES";
             if (c.includes("legal")) return c.includes("free") ? "FREE LEGAL SERVICES" : "LEGAL AID";
-            if (c.includes("housing") || c.includes("shelter")) return "HOUSING";
-            if (c.includes("job") || c.includes("at work") || c.includes("employment")) return "EMPLOYMENT";
-            if (c.includes("transportation") || c.includes("bus") || c.includes("rides")) return "TRANSPORTATION";
-            if (c.includes("clothes") || c.includes("clothing")) return "CLOTHING";
-            if (c.includes("disability")) return "DISABILITY";
-            if (c.includes("mentoring") || c.includes("support group")) return "SUPPORT GROUPS & MENTORING";
+            if (c.includes("housing") || c.includes("shelter") || c.includes("commission")) return "HOUSING";
+            if (c.includes("job") || c.includes("training") || c.includes("at work") || c.includes("employment")) return "EMPLOYMENT";
+            if (c.includes("transportation") || c.includes("bus") || c.includes("rides") || c.includes("smart")) return "TRANSPORTATION";
+            if (c.includes("clothes") || c.includes("clothing") || c.includes("closet")) return "CLOTHING";
+            if (c.includes("disability") || c.includes("rehabilitation")) return "DISABILITY";
+            if (c.includes("mentoring") || c.includes("support group") || c.includes("mentoring")) return "SUPPORT GROUPS & MENTORING";
+            if (c.includes("tech") || c.includes("computer")) return "TECH HELP";
+            if (c.includes("holiday")) return "HOLIDAY HELP";
+            if (c.includes("marketing")) return "MARKETING SOLUTION";
+            if (c.includes("family") || c.includes("youth") || c.includes("community")) return "FAMILY, YOUTH, CHILDREN'S SERVICE";
             return "ADDITIONAL HELPFUL LINKS";
+        }
+
+        // Color Assignments for the Pins
+        function getCategoryColor(cat) {
+            const colors = {
+                "FOOD": "#16a34a", "DETROIT FREE HEALTH CLINICS": "#dc2626", "HOUSING": "#2563eb",
+                "EDUCATION": "#9333ea", "ACTIVITY FOR KIDS": "#ea580c", "PREGNANCY & BABIES": "#db2777",
+                "CLOTHING": "#0891b2", "TRANSPORTATION": "#4f46e5", "EMPLOYMENT": "#ca8a04",
+                "LEGAL AID": "#475569", "PARENTING & CAREGIVING": "#be185d"
+            };
+            return colors[cat] || "#6366f1";
         }
 
         Papa.parse(csvUrl, {
@@ -117,167 +145,12 @@
 
                 if (!isNaN(lat) && !isNaN(lng)) {
                     if (selectedFilter === 'all' || cleanCat === selectedFilter) {
+                        var color = getCategoryColor(cleanCat);
                         var popupHTML = `
                             <div class="popup-card">
-                                <span class="org-cat-badge">${cleanCat}</span>
+                                <span class="org-cat-badge" style="background:${color}15; color:${color}">${cleanCat}</span>
                                 <span class="org-name">${row["Name of Organization"]}</span>
-                                <small>${row["Address"]}</small>
+                                <small style="color:#64748b">${row["Address"]}</small>
                                 <div class="action-btns">
                                     ${row["Phone"] ? `<a href="tel:${row["Phone"]}" class="btn btn-call">Call</a>` : ''}
-                                    <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-dir">Directions</a>
-                                </div>
-                            </div>`;
-
-                        L.marker([lat, lng]).bindPopup(popupHTML).addTo(markerGroup);
-                        bounds.push([lat, lng]);
-                    }
-                }
-            });
-            if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
-        }
-
-        function filterMap(val) { displayMarkers(val); }
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detroit Resource Map</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-
-    <style>
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f0f0f0; }
-        
-        .header {
-            background: white; padding: 15px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: sticky; top: 0; z-index: 1001;
-        }
-        
-        .filter-select {
-            width: 100%; padding: 12px; border-radius: 8px;
-            border: 2px solid #007bff; font-size: 14px; font-weight: bold;
-            background-color: #fff; cursor: pointer; color: #007bff;
-        }
-
-        #map { height: calc(100vh - 80px); width: 100%; }
-
-        .popup-card { min-width: 220px; line-height: 1.5; }
-        .org-name { font-size: 16px; font-weight: bold; color: #000; display: block; }
-        .org-cat-badge { 
-            display: inline-block; padding: 2px 6px; border-radius: 4px; 
-            font-size: 10px; font-weight: bold; text-transform: uppercase; margin: 5px 0;
-            background: #eee; color: #333;
-        }
-        .action-btns { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; }
-        .btn { flex: 1; text-align: center; padding: 8px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; }
-        .btn-call { background: #007bff; color: white; }
-        .btn-dir { background: #28a745; color: white; }
-    </style>
-</head>
-<body>
-
-    <div class="header">
-        <select class="filter-select" id="cat-filter" onchange="filterMap(this.value)">
-            <option value="all">🔍 SHOW ALL CATEGORIES</option>
-            <option value="ACTIVITY FOR KIDS">ACTIVITY FOR KIDS</option>
-            <option value="EDUCATION">EDUCATION</option>
-            <option value="CLOTHING">CLOTHING</option>
-            <option value="DETROIT FREE HEALTH CLINICS">DETROIT FREE HEALTH CLINICS</option>
-            <option value="EMPLOYMENT">EMPLOYMENT</option>
-            <option value="FAMILY, YOUTH, CHILDREN'S SERVICE">FAMILY, YOUTH, CHILDREN'S SERVICE</option>
-            <option value="FOOD">FOOD</option>
-            <option value="FREE LEGAL SERVICES">FREE LEGAL SERVICES</option>
-            <option value="HEALTHCARE & MEDICAL">HEALTHCARE & MEDICAL</option>
-            <option value="HOUSING">HOUSING</option>
-            <option value="LEGAL AID">LEGAL AID</option>
-            <option value="PARENTING & CAREGIVING">PARENTING & CAREGIVING</option>
-            <option value="PREGNANCY & BABIES">PREGNANCY & BABIES</option>
-            <option value="SUPPORT GROUPS & MENTORING">SUPPORT GROUPS & MENTORING</option>
-            <option value="TECH HELP">TECH HELP</option>
-            <option value="TRANSPORTATION">TRANSPORTATION</option>
-            <option value="DISABILITY">DISABILITY</option>
-            <option value="ADDITIONAL HELPFUL LINKS">ADDITIONAL HELPFUL LINKS</option>
-        </select>
-    </div>
-
-    <div id="map"></div>
-
-    <script>
-        // Use Standard Map Tiles (OpenStreetMap)
-        var map = L.map('map').setView([42.3314, -83.0458], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
-        var allData = [];
-        var markerGroup = L.layerGroup().addTo(map);
-        var csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDQf4C3GrOGMWh4pJ0DabdO7uHx5sFiDOy8DuPSL6kgXmEehhJTl1ipJoLz7TvI6uxVAHBZvTci02d/pub?output=csv';
-
-        function getCleanCategory(rawCat) {
-            if (!rawCat) return "UNCATEGORIZED";
-            let c = rawCat.toLowerCase();
-            if (c.includes("food") || c.includes("harvest") || c.includes("gleaners") || c.includes("pantry")) return "FOOD";
-            if (c.includes("clinic") || c.includes("health center") || c.includes("huda")) return "DETROIT FREE HEALTH CLINICS";
-            if (c.includes("medical") || c.includes("healthcare")) return "HEALTHCARE & MEDICAL";
-            if (c.includes("camp") || c.includes("activity") || c.includes("library") || c.includes("kids")) return "ACTIVITY FOR KIDS";
-            if (c.includes("education") || c.includes("literacy") || c.includes("school")) return "EDUCATION";
-            if (c.includes("parenting") || c.includes("caregiving") || c.includes("father")) return "PARENTING & CAREGIVING";
-            if (c.includes("pregnancy") || c.includes("babies") || c.includes("diaper")) return "PREGNANCY & BABIES";
-            if (c.includes("legal")) return c.includes("free") ? "FREE LEGAL SERVICES" : "LEGAL AID";
-            if (c.includes("housing") || c.includes("shelter")) return "HOUSING";
-            if (c.includes("job") || c.includes("at work") || c.includes("employment")) return "EMPLOYMENT";
-            if (c.includes("transportation") || c.includes("bus") || c.includes("rides")) return "TRANSPORTATION";
-            if (c.includes("clothes") || c.includes("clothing")) return "CLOTHING";
-            if (c.includes("disability")) return "DISABILITY";
-            if (c.includes("mentoring") || c.includes("support group")) return "SUPPORT GROUPS & MENTORING";
-            return "ADDITIONAL HELPFUL LINKS";
-        }
-
-        Papa.parse(csvUrl, {
-            download: true, header: true,
-            complete: function(results) {
-                allData = results.data.filter(row => row["Name of Organization"]);
-                displayMarkers('all');
-            }
-        });
-
-        function displayMarkers(selectedFilter) {
-            markerGroup.clearLayers();
-            var bounds = [];
-
-            allData.forEach(function(row) {
-                var cleanCat = getCleanCategory(row[Object.keys(row)[0]]);
-                var lat = parseFloat(row["Latitude"]) || parseFloat(row["Latitude (Y)"]);
-                var lng = parseFloat(row["Longitude"]) || parseFloat(row["Longitude (X)"]);
-
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    if (selectedFilter === 'all' || cleanCat === selectedFilter) {
-                        var popupHTML = `
-                            <div class="popup-card">
-                                <span class="org-cat-badge">${cleanCat}</span>
-                                <span class="org-name">${row["Name of Organization"]}</span>
-                                <small>${row["Address"]}</small>
-                                <div class="action-btns">
-                                    ${row["Phone"] ? `<a href="tel:${row["Phone"]}" class="btn btn-call">Call</a>` : ''}
-                                    <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-dir">Directions</a>
-                                </div>
-                            </div>`;
-
-                        L.marker([lat, lng]).bindPopup(popupHTML).addTo(markerGroup);
-                        bounds.push([lat, lng]);
-                    }
-                }
-            });
-            if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
-        }
-
-        function filterMap(val) { displayMarkers(val); }
-    </script>
-</body>
-</html>
+                                    <a href="http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}" target
