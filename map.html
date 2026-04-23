@@ -47,16 +47,37 @@
         function displayMarkers(category) {
             markerGroup.clearLayers();
             allData.forEach(function(row) {
-                // Adjust "Category" to match your sheet header name
-                if (category === 'all' || (row.Category && row.Category.toLowerCase() === category)) {
-                    if (row.Latitude && row.Longitude) {
+                // MATCHING YOUR HEADERS EXACTLY
+                var orgName = row["Name of Organization"]; // Note the capital 'O'
+                var orgCat  = row["Category"]; 
+                var orgLat  = parseFloat(row["Latitude"]);
+                var orgLng  = parseFloat(row["Longitude"]);
+                var addr    = row["Address"];
+                var web     = row["Website"];
+                var phone   = row["Phone"];
+        
+                // Only add pin if Latitude and Longitude exist
+                if (!isNaN(orgLat) && !isNaN(orgLng)) {
+                    
+                    // Check if the pin matches the selected filter
+                    if (category === 'all' || (orgCat && orgCat.toLowerCase().includes(category.toLowerCase()))) {
+                        
                         var popupContent = `
-                            <strong>${row["Name of organization"]}</strong><br>
-                            ${row.Address}<br>
-                            <a class="popup-link" href="${row.Website}" target="_blank">Visit Website</a>
-                            <a class="popup-link" href="https://www.google.com/maps/dir/?api=1&destination=${row.Latitude},${row.Longitude}" target="_blank">Get Directions</a>
+                            <div style="font-family: sans-serif; line-height: 1.5; min-width: 200px;">
+                                <strong style="font-size:16px; color:#222;">${orgName}</strong><br>
+                                <span style="color:#555; font-size:13px;">${addr}</span><br>
+                                
+                                <div style="margin-top: 10px;">
+                                    ${phone ? `<a href="tel:${phone}" style="display:inline-block; background:#007bff; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:12px; margin-bottom:5px;">📞 Call ${phone}</a><br>` : ''}
+                                    
+                                    ${web ? `<a href="${web}" target="_blank" style="display:inline-block; color:#007bff; font-weight:bold; font-size:13px; text-decoration:none; margin-bottom:5px;">🌐 Visit Website</a><br>` : ''}
+                                    
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination=${orgLat},${orgLng}" target="_blank" style="display:inline-block; color:#28a745; font-weight:bold; font-size:13px; text-decoration:none;">📍 Get Directions</a>
+                                </div>
+                            </div>
                         `;
-                        L.marker([row.Latitude, row.Longitude]).bindPopup(popupContent).addTo(markerGroup);
+        
+                        L.marker([orgLat, orgLng]).bindPopup(popupContent).addTo(markerGroup);
                     }
                 }
             });
