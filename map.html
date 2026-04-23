@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detroit Resource Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; }
+        #map { height: 500px; width: 100%; }
+        .nav { padding: 10px; background: #222; color: white; display: flex; gap: 10px; overflow-x: auto; }
+        button { padding: 8px 15px; cursor: pointer; border-radius: 20px; border: none; background: #444; color: white; white-space: nowrap; }
+        button:hover { background: #007bff; }
+        .popup-link { display: block; margin-top: 5px; color: #007bff; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="nav">
+        <button onclick="filterMap('all')">All</button>
+        <button onclick="filterMap('food')">Food</button>
+        <button onclick="filterMap('clothes')">Clothes</button>
+        <button onclick="filterMap('helplines')">Helplines</button>
+        <button onclick="filterMap('activities')">Kids Activities</button>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        var map = L.map('map').setView([42.3314, -83.0458], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var allData = [];
+        var markerGroup = L.layerGroup().addTo(map);
+
+        // PASTE YOUR CSV LINK FROM STEP 2 BELOW
+        var csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDQf4C3GrOGMWh4pJ0DabdO7uHx5sFiDOy8DuPSL6kgXmEehhJTl1ipJoLz7TvI6uxVAHBZvTci02d/pub?output=csv';
+
+        Papa.parse(csvUrl, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                allData = results.data;
+                displayMarkers('all');
+            }
+        });
+
+        function displayMarkers(category) {
+            markerGroup.clearLayers();
+            allData.forEach(function(row) {
+                // Adjust "Category" to match your sheet header name
+                if (category === 'all' || (row.Category && row.Category.toLowerCase() === category)) {
+                    if (row.Latitude && row.Longitude) {
+                        var popupContent = `
+                            <strong>${row["Name of organization"]}</strong><br>
+                            ${row.Address}<br>
+                            <a class="popup-link" href="${row.Website}" target="_blank">Visit Website</a>
+                            <a class="popup-link" href="https://www.google.com/maps/dir/?api=1&destination=${row.Latitude},${row.Longitude}" target="_blank">Get Directions</a>
+                        `;
+                        L.marker([row.Latitude, row.Longitude]).bindPopup(popupContent).addTo(markerGroup);
+                    }
+                }
+            });
+        }
+
+        function filterMap(c) { displayMarkers(c); }
+    </script>
+</body>
+</html>
