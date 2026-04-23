@@ -1,28 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Detroit Resource Map</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detroit Family Resource Map</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+
     <style>
-        body { font-family: sans-serif; margin: 0; }
-        #map { height: 500px; width: 100%; }
-        .nav { padding: 10px; background: #222; color: white; display: flex; gap: 10px; overflow-x: auto; }
-        button { padding: 8px 15px; cursor: pointer; border-radius: 20px; border: none; background: #444; color: white; white-space: nowrap; }
-        button:hover { background: #007bff; }
-        .popup-link { display: block; margin-top: 5px; color: #007bff; text-decoration: none; font-weight: bold; }
+        body { font-family: -apple-system, sans-serif; margin: 0; }
+        .nav-container {
+            background: #fff; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky; top: 0; z-index: 1000; display: flex; gap: 8px;
+            overflow-x: auto; white-space: nowrap;
+        }
+        .filter-btn {
+            background: #f0f2f5; border: 1px solid #ddd; padding: 8px 16px;
+            border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px;
+        }
+        .filter-btn.active { background: #007bff; color: white; border-color: #007bff; }
+        #map { height: calc(100vh - 60px); width: 100%; }
+        .popup-content { line-height: 1.4; min-width: 200px; }
+        .popup-title { font-size: 15px; font-weight: bold; color: #222; display: block; margin-bottom: 2px; }
+        .popup-addr { color: #666; font-size: 12px; display: block; margin-bottom: 8px; }
+        .popup-btn {
+            display: inline-block; text-decoration: none; padding: 6px 12px;
+            border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 5px;
+        }
+        .btn-call { background: #007bff; color: white; margin-right: 5px; }
+        .btn-dir { background: #28a745; color: white; }
+        .btn-web { color: #007bff; border: 1px solid #007bff; width: 100%; box-sizing: border-box; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="nav">
-        <button onclick="filterMap('all')">All</button>
-        <button onclick="filterMap('food')">Food</button>
-        <button onclick="filterMap('clothes')">Clothes</button>
-        <button onclick="filterMap('helplines')">Helplines</button>
-        <button onclick="filterMap('activities')">Kids Activities</button>
+    <div class="nav-container" id="filter-bar">
+        <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
+        <button class="filter-btn" onclick="filterMap('Food', this)">Food</button>
+        <button class="filter-btn" onclick="filterMap('Summer Camp', this)">Summer Camp</button>
+        <button class="filter-btn" onclick="filterMap('Health', this)">Healthcare</button>
+        <button class="filter-btn" onclick="filterMap('Education', this)">Education</button>
+        <button class="filter-btn" onclick="filterMap('Housing', this)">Housing</button>
+        <button class="filter-btn" onclick="filterMap('Parenting', this)">Parenting</button>
+        <button class="filter-btn" onclick="filterMap('Legal', this)">Legal</button>
+        <button class="filter-btn" onclick="filterMap('Clothes', this)">Clothes</button>
     </div>
+
     <div id="map"></div>
 
     <script>
@@ -32,8 +57,8 @@
         var allData = [];
         var markerGroup = L.layerGroup().addTo(map);
 
-        // PASTE YOUR CSV LINK FROM STEP 2 BELOW
-        var csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDQf4C3GrOGMWh4pJ0DabdO7uHx5sFiDOy8DuPSL6kgXmEehhJTl1ipJoLz7TvI6uxVAHBZvTci02d/pub?output=csv';
+        // PASTE YOUR CSV LINK HERE
+        var csvUrl = 'PASTE_YOUR_LINK_HERE';
 
         Papa.parse(csvUrl, {
             download: true,
@@ -46,44 +71,51 @@
 
         function displayMarkers(category) {
             markerGroup.clearLayers();
+            var bounds = [];
+
             allData.forEach(function(row) {
-                // MATCHING YOUR HEADERS EXACTLY
-                var orgName = row["Name of Organization"]; // Note the capital 'O'
-                var orgCat  = row["Category"]; 
-                var orgLat  = parseFloat(row["Latitude"]);
-                var orgLng  = parseFloat(row["Longitude"]);
-                var addr    = row["Address"];
-                var web     = row["Website"];
-                var phone   = row["Phone"];
-        
-                // Only add pin if Latitude and Longitude exist
-                if (!isNaN(orgLat) && !isNaN(orgLng)) {
-                    
-                    // Check if the pin matches the selected filter
-                    if (category === 'all' || (orgCat && orgCat.toLowerCase().includes(category.toLowerCase()))) {
-                        
-                        var popupContent = `
-                            <div style="font-family: sans-serif; line-height: 1.5; min-width: 200px;">
-                                <strong style="font-size:16px; color:#222;">${orgName}</strong><br>
-                                <span style="color:#555; font-size:13px;">${addr}</span><br>
+                // Mapping exactly to your headers
+                var name  = row["Name of Organization"];
+                var cat   = row["Category"] || "";
+                var lat   = parseFloat(row["Latitude"]);
+                var lng   = parseFloat(row["Longitude"]);
+                var addr  = row["Address"];
+                var web   = row["Website"];
+                var phone = row["Phone"];
+
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    var matchesFilter = (category === 'all' || cat.toLowerCase().includes(category.toLowerCase()));
+
+                    if (matchesFilter) {
+                        var popupHTML = `
+                            <div class="popup-content">
+                                <span class="popup-title">${name}</span>
+                                <span class="popup-addr">${addr}</span>
                                 
-                                <div style="margin-top: 10px;">
-                                    ${phone ? `<a href="tel:${phone}" style="display:inline-block; background:#007bff; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:12px; margin-bottom:5px;">📞 Call ${phone}</a><br>` : ''}
-                                    
-                                    ${web ? `<a href="${web}" target="_blank" style="display:inline-block; color:#007bff; font-weight:bold; font-size:13px; text-decoration:none; margin-bottom:5px;">🌐 Visit Website</a><br>` : ''}
-                                    
-                                    <a href="https://www.google.com/maps/dir/?api=1&destination=${orgLat},${orgLng}" target="_blank" style="display:inline-block; color:#28a745; font-weight:bold; font-size:13px; text-decoration:none;">📍 Get Directions</a>
-                                </div>
+                                ${phone ? `<a href="tel:${phone}" class="popup-btn btn-call">📞 Call</a>` : ''}
+                                <a href="http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}" target="_blank" class="popup-btn btn-dir">📍 Directions</a>
+                                
+                                ${web ? `<a href="${web}" target="_blank" class="popup-btn btn-web">Visit Website</a>` : ''}
                             </div>
                         `;
-        
-                        L.marker([orgLat, orgLng]).bindPopup(popupContent).addTo(markerGroup);
+
+                        var m = L.marker([lat, lng]).bindPopup(popupHTML);
+                        m.addTo(markerGroup);
+                        bounds.push([lat, lng]);
                     }
                 }
             });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
         }
 
-        function filterMap(c) { displayMarkers(c); }
+        function filterMap(cat, btn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            displayMarkers(cat);
+        }
     </script>
 </body>
 </html>
