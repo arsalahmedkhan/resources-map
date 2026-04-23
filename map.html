@@ -4,65 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detroit Family Resource Map</title>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; }
-        .nav-container {
-            background: #fff; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            position: sticky; top: 0; z-index: 1000; display: flex; gap: 8px;
-            overflow-x: auto; white-space: nowrap;
-        }
-        .filter-btn {
-            background: #f0f2f5; border: 1px solid #ddd; padding: 8px 16px;
-            border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px;
-        }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #f4f4f9; }
+        .nav-container { background: #fff; padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; display: flex; gap: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .filter-btn { background: #f0f2f5; border: 1px solid #ddd; padding: 10px 18px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap; transition: 0.2s; }
         .filter-btn.active { background: #007bff; color: white; border-color: #007bff; }
-        #map { height: calc(100vh - 60px); width: 100%; }
-        .popup-content { line-height: 1.4; min-width: 200px; }
-        .popup-title { font-size: 15px; font-weight: bold; color: #222; display: block; margin-bottom: 2px; }
-        .popup-addr { color: #666; font-size: 12px; display: block; margin-bottom: 8px; }
-        .popup-btn {
-            display: inline-block; text-decoration: none; padding: 6px 12px;
-            border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 5px;
-        }
+        #map { height: calc(100vh - 65px); width: 100%; }
+        .popup-content { line-height: 1.5; min-width: 220px; font-size: 14px; color: #333; }
+        .popup-title { font-size: 17px; font-weight: bold; color: #000; display: block; margin-bottom: 4px; }
+        .popup-btn { display: inline-block; text-decoration: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; margin-top: 10px; text-align: center; width: 45%; box-sizing: border-box; }
         .btn-call { background: #007bff; color: white; margin-right: 5px; }
         .btn-dir { background: #28a745; color: white; }
-        .btn-web { color: #007bff; border: 1px solid #007bff; width: 100%; box-sizing: border-box; text-align: center; }
+        .popup-web { display: block; margin-top: 12px; color: #007bff; font-weight: bold; text-decoration: underline; }
     </style>
 </head>
 <body>
 
-    <div class="nav-container" id="filter-bar">
+    <div class="nav-container">
         <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
         <button class="filter-btn" onclick="filterMap('Food', this)">Food</button>
-        <button class="filter-btn" onclick="filterMap('Summer Camp', this)">Summer Camp</button>
-        <button class="filter-btn" onclick="filterMap('Health', this)">Healthcare</button>
+        <button class="filter-btn" onclick="filterMap('Camp', this)">Summer Camps</button>
+        <button class="filter-btn" onclick="filterMap('Clinic', this)">Health Clinics</button>
+        <button class="filter-btn" onclick="filterMap('Parenting', this)">Parenting</button>
         <button class="filter-btn" onclick="filterMap('Education', this)">Education</button>
         <button class="filter-btn" onclick="filterMap('Housing', this)">Housing</button>
-        <button class="filter-btn" onclick="filterMap('Parenting', this)">Parenting</button>
-        <button class="filter-btn" onclick="filterMap('Legal', this)">Legal</button>
-        <button class="filter-btn" onclick="filterMap('Clothes', this)">Clothes</button>
+        <button class="filter-btn" onclick="filterMap('Legal', this)">Legal Services</button>
     </div>
 
     <div id="map"></div>
 
     <script>
         var map = L.map('map').setView([42.3314, -83.0458], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
         var allData = [];
         var markerGroup = L.layerGroup().addTo(map);
 
-        // PASTE YOUR CSV LINK HERE
-        var csvUrl = 'PASTE_YOUR_LINK_HERE';
+        // YOUR UPDATED CSV LINK
+        var csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDQf4C3GrOGMWh4pJ0DabdO7uHx5sFiDOy8DuPSL6kgXmEehhJTl1ipJoLz7TvI6uxVAHBZvTci02d/pub?output=csv';
 
         Papa.parse(csvUrl, {
             download: true,
             header: true,
+            skipEmptyLines: true,
             complete: function(results) {
                 allData = results.data;
                 displayMarkers('all');
@@ -74,31 +63,37 @@
             var bounds = [];
 
             allData.forEach(function(row) {
-                // Mapping exactly to your headers
-                var name  = row["Name of Organization"];
-                var cat   = row["Category"] || "";
-                var lat   = parseFloat(row["Latitude"]);
-                var lng   = parseFloat(row["Longitude"]);
-                var addr  = row["Address"];
-                var web   = row["Website"];
-                var phone = row["Phone"];
+                // Find the keys dynamically because of the header mashup
+                var keys = Object.keys(row);
+                var catKey = keys[0]; // Usually the first column
+
+                var orgCat  = row[catKey] || "";
+                var orgName = row["Name of Organization"];
+                var addr    = row["Address"];
+                var web     = row["Website"];
+                var phone   = row["Phone"];
+                
+                // Coordinates check
+                var lat = parseFloat(row["Latitude"]) || parseFloat(row["Latitude (Y)"]);
+                var lng = parseFloat(row["Longitude"]) || parseFloat(row["Longitude (X)"]);
 
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    var matchesFilter = (category === 'all' || cat.toLowerCase().includes(category.toLowerCase()));
+                    var matchesFilter = (category === 'all' || orgCat.toLowerCase().includes(category.toLowerCase()));
 
                     if (matchesFilter) {
                         var popupHTML = `
                             <div class="popup-content">
-                                <span class="popup-title">${name}</span>
-                                <span class="popup-addr">${addr}</span>
+                                <span class="popup-title">${orgName}</span>
+                                <span style="color:#666;">${addr}</span><br>
                                 
-                                ${phone ? `<a href="tel:${phone}" class="popup-btn btn-call">📞 Call</a>` : ''}
-                                <a href="http://googleusercontent.com/maps.google.com/maps?daddr=${lat},${lng}" target="_blank" class="popup-btn btn-dir">📍 Directions</a>
+                                <div style="display:flex; justify-content: space-between;">
+                                    ${phone ? `<a href="tel:${phone}" class="popup-btn btn-call">📞 Call</a>` : ''}
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="popup-btn btn-dir">📍 Directions</a>
+                                </div>
                                 
-                                ${web ? `<a href="${web}" target="_blank" class="popup-btn btn-web">Visit Website</a>` : ''}
+                                ${web ? `<a href="${web}" target="_blank" class="popup-web">Visit Website →</a>` : ''}
                             </div>
                         `;
-
                         var m = L.marker([lat, lng]).bindPopup(popupHTML);
                         m.addTo(markerGroup);
                         bounds.push([lat, lng]);
